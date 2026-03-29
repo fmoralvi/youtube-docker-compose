@@ -11,7 +11,27 @@ env:
   IMAGE_NAME: ${{ github.repository }}/tour-of-heroes-angular
 
 jobs:
+
+  analyze_dockerfile:
+    permissions:
+      contents: read
+      security-events: write
+    uses: fmoralvi/scan-docker-vulnerabilities/.github/workflows/checkov.yaml@main
+    with:
+      dockerfile_path: tour-of-heroes-angular/Dockerfile.gh-copilot
+
+  analyze_image:
+    permissions:
+      contents: read
+      security-events: write
+    uses: fmoralvi/scan-docker-vulnerabilities/.github/workflows/trivy.yaml@main
+    with:
+      image_name: tour-of-heroes-angular
+      dockerfile_path: tour-of-heroes-angular/Dockerfile.gh-copilot
+      context: tour-of-heroes-angular
+
   build-and-push-image:
+    needs: [analyze_dockerfile, analyze_image]
     runs-on: ubuntu-latest
 
     permissions:
