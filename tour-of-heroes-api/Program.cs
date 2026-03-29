@@ -29,33 +29,65 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
 app.MapGet("/", () =>
 {
     return Results.Text("Welcome to the Tour of Heroes API", "text/html");
 });
 
-app.MapGet("/api/hero", async (HeroesContext db) =>
+app.MapGet("/api/hero", async (string? name, HeroesContext db) =>
 {
-    var heroes = await db.Heroes.ToListAsync();
+    var query = db.Heroes.AsQueryable();
+    if (!string.IsNullOrWhiteSpace(name))
+        query = query.Where(h => h.Name.Contains(name));
 
-    List<Hero> newHeroes = [];
-
-    heroes.ForEach(hero =>
-    {
-        newHeroes.Add(new Hero(hero.Id, string.Format("{0} 🦸🏼‍♀️",hero.Name) , hero.AlterEgo, hero.Description));
-    });
-
-    return Results.Ok(newHeroes);
-
-    // return await db.Heroes.ToListAsync();
-
+    var heroes = await query.ToListAsync();
+    return Results.Ok(heroes.Select(h => new Hero(h.Id, string.Format("{0} 🦸🏼‍♀️", h.Name), h.AlterEgo, h.Description)));
 })
 .WithName("GetHeroes")
+.WithOpenApi();
+
+app.MapGet("/api/hero/{id}", async (int id, HeroesContext db) =>
+{
+    var hero = await db.Heroes.FindAsync(id);
+    if (hero is null) return Results.NotFound();
+    return Results.Ok(new Hero(hero.Id, string.Format("{0} 🦸🏼‍♀️", hero.Name), hero.AlterEgo, hero.Description));
+})
+.WithName("GetHeroById")
+.WithOpenApi();
+
+app.MapPost("/api/hero", async (Hero hero, HeroesContext db) =>
+{
+    var newHero = hero with { AlterEgo = hero.AlterEgo ?? "", Description = hero.Description ?? "" };
+    db.Heroes.Add(newHero);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/hero/{newHero.Id}", newHero);
+})
+.WithName("CreateHero")
+.WithOpenApi();
+
+app.MapPut("/api/hero/{id}", async (int id, Hero input, HeroesContext db) =>
+{
+    var hero = await db.Heroes.FindAsync(id);
+    if (hero is null) return Results.NotFound();
+    db.Entry(hero).CurrentValues.SetValues(input);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+.WithName("UpdateHero")
+.WithOpenApi();
+
+app.MapDelete("/api/hero/{id}", async (int id, HeroesContext db) =>
+{
+    var hero = await db.Heroes.FindAsync(id);
+    if (hero is null) return Results.NotFound();
+    db.Heroes.Remove(hero);
+    await db.SaveChangesAsync();
+    return Results.NoContent();
+})
+.WithName("DeleteHero")
 .WithOpenApi();
 
 app.Run();
 
 
-public record Hero(int Id, string Name, string AlterEgo, string Description);
+public record Hero(int Id, string Name, string? AlterEgo, string? Description);

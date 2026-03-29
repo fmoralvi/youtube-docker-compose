@@ -1,5 +1,10 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 
+LABEL maintainer="fmoralvi" \
+      description="Tour of Heroes API" \
+      version="1.0.0" \
+      license="MIT"
+
 WORKDIR /app
 
 EXPOSE 5000
